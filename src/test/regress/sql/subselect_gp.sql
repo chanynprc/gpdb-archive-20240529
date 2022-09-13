@@ -1190,3 +1190,16 @@ explain (costs off, verbose)
 select * from issue_12656 where (i, j) in (select distinct on (i) i, j from issue_12656 order by i, j desc);
 
 select * from issue_12656 where (i, j) in (select distinct on (i) i, j from issue_12656 order by i, j desc);
+
+create table t(a int, b int);
+create table r(x int, y bigint);
+
+set optimizer to off;
+explain select t.* from t join (select y ,10*avg(x) s from R group by y) RR on RR.y = t.b and t.a > rr.s;
+explain select * from T where a > (select 10*avg(x) from R where T.b=R.y);
+
+set enable_hashagg to off;
+explain select t.* from t join (select y ,10*avg(x) s from R group by y) RR on RR.y = t.b and t.a > rr.s;
+explain select * from T where a > (select 10*avg(x) from R where T.b=R.y);
+reset optimizer;
+reset enable_hashagg;

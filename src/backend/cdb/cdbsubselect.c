@@ -431,6 +431,14 @@ SubqueryToJoinWalker(Node *node, ConvertSubqueryToJoinContext *context)
 											   false);
 			tle->ressortgroupref = list_length(context->targetList) + 1;
 			context->targetList = lappend(context->targetList, tle);
+			
+			/* 
+			 * If the type of outervar and innervar are different,
+			 * we need to use innervar to make group clause and find
+			 * correct sortOp and eqOp for sort/hash node.
+			 */
+			if (exprType(linitial(opexp->args)) != exprType(lsecond(opexp->args)))
+				get_sort_group_operators(exprType((Node *)tle->expr), false, true, false, &sortOp, &eqOp, NULL, &hashable);
 
 			gc = makeNode(SortGroupClause);
 			gc->tleSortGroupRef = list_length(context->groupClause) + 1;
