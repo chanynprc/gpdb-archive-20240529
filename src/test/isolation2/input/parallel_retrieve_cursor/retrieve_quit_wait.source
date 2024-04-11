@@ -64,10 +64,13 @@ insert into t1 select generate_series(1,100);
 -- skip TOKEN3 in this session
 
 0U: SELECT cursorname,senderpid<>-1, receiverpid<>-1, state FROM gp_get_segment_endpoints();
-0Rq:
+*Rq:
 
 -- Since retrieving session abort, waiting should be interrupted.
 1<:
+
+-- abort session 1
+1: ROLLBACK;
 
 -- All endpoints should be removed since error happened.
 2: SELECT cursorname, state FROM gp_get_endpoints();

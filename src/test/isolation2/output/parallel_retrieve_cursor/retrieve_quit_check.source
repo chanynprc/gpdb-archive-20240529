@@ -180,18 +180,35 @@ ERROR:  another session (pid: 49941) used the endpoint and completed retrieving
 -- Now check on c1 will trigger the error, all endpoints should be aborted since the transaction
 -- will be terminated.
 1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c1', 0);
-ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=78585)
+ finished 
+----------
+ f        
+(1 row)
 1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c2', 0);
-ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ finished 
+----------
+ f        
+(1 row)
 1: SELECT * FROM gp_wait_parallel_retrieve_cursor('c3', 0);
-ERROR:  current transaction is aborted, commands ignored until end of transaction block
+ finished 
+----------
+ f        
+(1 row)
 2: SELECT cursorname, state FROM gp_get_endpoints();
- cursorname | state 
-------------+-------
-(0 rows)
+ cursorname | state    
+------------+----------
+ c1         | READY    
+ c1         | READY    
+ c2         | FINISHED 
+ c2         | READY    
+ c2         | READY    
+ c3         | ATTACHED 
+ c3         | READY    
+ c3         | READY    
+(8 rows)
 
 1: END;
-ROLLBACK
+COMMIT
 
 2: SELECT cursorname, state FROM gp_get_endpoints();
  cursorname | state 

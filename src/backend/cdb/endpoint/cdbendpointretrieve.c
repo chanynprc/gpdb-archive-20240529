@@ -35,6 +35,7 @@
 #include "access/xact.h"
 #include "common/hashfn.h"
 #include "storage/ipc.h"
+#include "storage/procsignal.h"
 #include "utils/backend_cancel.h"
 #include "utils/dynahash.h"
 #include "utils/elog.h"
@@ -701,6 +702,37 @@ retrieve_cancel_action(RetrieveExecEntry * entry, char *msg)
 }
 
 /*
+ * When the retrieve role exits (e.g., due to having retrieved enough data),
+ * allow the endpoint/sender to complete the query.
+ */
+static void
+retrieve_finish_action(RetrieveExecEntry * entry)
+{
+	Endpoint	*endpoint;
+
+	Assert(entry);
+
+	LWLockAcquire(ParallelCursorEndpointLock, LW_EXCLUSIVE);
+
+	endpoint = get_endpoint_from_retrieve_exec_entry(entry, true);
+
+	if (endpoint != NULL &&
+		endpoint->receiverPid == MyProcPid &&
+		endpoint->state != ENDPOINTSTATE_FINISHED)
+	{
+		endpoint->receiverPid = InvalidPid;
+		endpoint->state = ENDPOINTSTATE_FINISHED;
+		if (endpoint->senderPid != InvalidPid)
+		{
+			elog(DEBUG3, "CDB_ENDPOINT: signal sender to finish");
+			SendProcSignal(endpoint->senderPid, PROCSIG_QUERY_FINISH, InvalidBackendId);
+		}
+	}
+
+	LWLockRelease(ParallelCursorEndpointLock);
+}
+
+/*
  * Callback when retrieve role on proc exit, before shmem exit.
  *
  * For Process Exists:
@@ -755,9 +787,7 @@ retrieve_exit_callback(int code, Datum arg)
 	while ((entry = (RetrieveExecEntry *) hash_seq_search(&status)) != NULL)
 	{
 		if (entry->retrieveState != RETRIEVE_STATE_FINISHED)
-			retrieve_cancel_action(entry, "Endpoint retrieve session is "
-								   "quitting. All unfinished parallel retrieve "
-								   "cursors on the session will be terminated.");
+			retrieve_finish_action(entry);
 		if (entry->mqSeg)
 			detach_receiver_mq(entry);
 	}

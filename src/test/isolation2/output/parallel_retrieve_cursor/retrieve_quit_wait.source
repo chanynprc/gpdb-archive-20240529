@@ -256,7 +256,7 @@ DECLARE PARALLEL RETRIEVE CURSOR
 
 -- Since c1 has been only partially retrieved, an error will be raised when transaction ends.
 1: END;
-ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=69967)
+COMMIT
 
 2: SELECT cursorname, state FROM gp_get_endpoints();
  cursorname | state 
@@ -462,11 +462,21 @@ DECLARE PARALLEL RETRIEVE CURSOR
  c5         | f        | t        | FINISHED 
  c6         | t        | f        | READY    
 (3 rows)
-0Rq: ... <quitting>
+*Rq:Sessions not started cannot be quit
+ ... <quitting>
+ ... <quitting>
+ ... <quitting>
 
 -- Since retrieving session abort, waiting should be interrupted.
 1<:  <... completed>
-ERROR:  canceling MPP operation: "Endpoint retrieve session is quitting. All unfinished parallel retrieve cursors on the session will be terminated."  (seg0 192.168.235.128:7002 pid=70221)
+ finished 
+----------
+ t        
+(1 row)
+
+-- abort session 1
+1: ROLLBACK;
+ROLLBACK
 
 -- All endpoints should be removed since error happened.
 2: SELECT cursorname, state FROM gp_get_endpoints();
